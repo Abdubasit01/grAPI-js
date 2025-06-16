@@ -1,23 +1,15 @@
-"""
-grAPI - Aggressive & Stealthy API Recon Tool
-Supports Active & Passive Discovery, Token Extraction, Spec Detection.
-Optimized for performance and stealth.
-
-Usage:
-    python3 grAPI.py --url https://example.com --all --wordlist endpoints.txt -v
-"""
-
 import requests
 import re
 import time
 import random
 import argparse
 import json
-import os
 from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
 from concurrent.futures import ThreadPoolExecutor
+from threading import Thread
+from queue import Queue
 
 ua = UserAgent()
 visited = set()
@@ -26,10 +18,11 @@ verbose = False
 root_url = ""
 
 KEYWORDS = [
-    'auth', 'login', 'logout', 'register', 'users?', 'admin', 'dashboard',
+    'auth', 'login', 'logout', 'register', 'user', 'users', 'admin', 'dashboard',
     'profile', 'settings', 'account', 'session', 'token', 'graphql', 'rest',
-    'api', 'v1', 'v2', 'products?', 'items?', 'orders?', 'data', 'service'
+    'api', 'v1', 'v2', 'products', 'items', 'orders', 'data', 'service'
 ]
+
 WAF_SIGNATURES = ["cloudflare", "sucuri", "akamai", "imperva", "aws"]
 BAD_EXTENSIONS = re.compile(r'.(jpg|jpeg|png|gif|svg|css|woff|ico|ttf|eot|pdf)(\?|$)', re.IGNORECASE)
 
@@ -50,7 +43,7 @@ def safe_get(url):
         return None
 
 def passive_wayback(target, max_results=300):
-    print("[] Running passive scan via Wayback Machine...")
+    print("[*] Running passive scan via Wayback Machine...")
     domain = urlparse(target).netloc
     wayback_url = (
         f"http://web.archive.org/cdx/search/cdx?url={domain}/"
@@ -79,12 +72,10 @@ def fingerprint():
             for sig in WAF_SIGNATURES:
                 if sig in str(r.headers).lower():
                     print(f"[!] Possible WAF/CDN detected: {sig}")
-        rt = safe_get(urljoin(root_url, "/robots.txt"))
-        sm = safe_get(urljoin(root_url, "/sitemap.xml"))
-        if rt and rt.status_code == 200:
-            print("[+] robots.txt found")
-        if sm and sm.status_code == 200:
-            print("[+] sitemap.xml found")
+        for path in ["/robots.txt", "/sitemap.xml"]:
+            res = safe_get(urljoin(root_url, path))
+            if res and res.status_code == 200:
+                print(f"[+] {path} found")
     except:
         pass
 
@@ -113,7 +104,7 @@ def scan_graphql():
         pass
 
 def extract_tokens_from_text(text):
-    pattern = r'(?:api_key|token|access_token|auth_token|jwt)["\']?\s*[:=]\s*["\']([^"\']+)["\']'
+    pattern = r"(?:api_key|token|access_token|auth_token|jwt)[\"']?\s*[:=]\s*[\"']([A-Za-z0-9\-_\.]+)[\"']?"
     return re.findall(pattern, text, re.IGNORECASE)
 
 def scan_for_tokens():
@@ -127,15 +118,12 @@ def scan_for_tokens():
         attr = tag.get('src') or tag.get('href')
         if attr and attr.endswith(".js"):
             links.append(urljoin(root_url, attr))
-    found = []
     for link in links:
         resp = safe_get(link)
         if resp and resp.text:
             toks = extract_tokens_from_text(resp.text)
             for t in toks:
                 print(f"[+] Token found in {link}: {t}")
-                found.append((link, t))
-    return found
 
 def extract_links(html, base_url):
     soup = BeautifulSoup(html, 'html.parser')
@@ -151,7 +139,7 @@ def extract_links(html, base_url):
 def extract_endpoints(text):
     patterns = [
         r'(["\'])(/[^"\'>\s]{1,200}?)\1',
-        r'(["\'])((?:https?:)?//[^"\'\s]+/[^"\'\s]+)\1'
+        r'(["\'])((?:https?:)?//[^"\'>\s]+/[^"\'>\s]+)\1'
     ]
     for pattern in patterns:
         matches = re.findall(pattern, text)
@@ -162,20 +150,35 @@ def extract_endpoints(text):
                     endpoints[ep_url] = None
                     log(f"[+] Found endpoint: {ep_url}")
 
-def crawl(url, depth=2):
-    if depth == 0 or url in visited:
-        return
-    visited.add(url)
+def concurrent_crawl(start_url, max_depth=2, max_threads=10):
+    q = Queue()
+    q.put((start_url, 0))
 
-    html = safe_get(url)
-    if not html or not html.text:
-        return
+    def worker():
+        while not q.empty():
+            url, depth = q.get()
+            if depth > max_depth or url in visited or BAD_EXTENSIONS.search(url):
+                q.task_done()
+                continue
+            visited.add(url)
+            try:
+                resp = safe_get(url)
+                if resp and resp.text:
+                    extract_endpoints(resp.text)
+                    for link in extract_links(resp.text, url):
+                        q.put((link, depth + 1))
+            except:
+                pass
+            q.task_done()
 
-    extract_endpoints(html.text)
-    for link in extract_links(html.text, url):
-        if BAD_EXTENSIONS.search(link): continue
-        time.sleep(random.uniform(0.8, 1.8))
-        crawl(link, depth - 1)
+    threads = []
+    for _ in range(max_threads):
+        t = Thread(target=worker)
+        t.daemon = True
+        t.start()
+        threads.append(t)
+
+    q.join()
 
 def check_single_endpoint(ep):
     try:
@@ -191,24 +194,8 @@ def check_status():
         for ep, status in results:
             endpoints[ep] = status
 
-def wordlist_fuzz(wordlist_path):
-    print(f"[*] Fuzzing with wordlist: {wordlist_path}")
-    if not os.path.exists(wordlist_path):
-        print(f"[!] Wordlist not found: {wordlist_path}")
-        return
-    with open(wordlist_path, 'r') as f:
-        paths = [line.strip() for line in f if line.strip()]
-    fuzz_urls = [urljoin(root_url, path.lstrip('/')) for path in paths]
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        results = executor.map(check_single_endpoint, fuzz_urls)
-    for url, status in results:
-        if status not in ["ERR", 404]:
-            if url not in endpoints:
-                print(f"[+] Fuzzed endpoint found: {url} => {status}")
-            endpoints[url] = status
-
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="grAPI - Stealthy API Recon Tool")
+    parser = argparse.ArgumentParser(description="grAPI - Aggressive & Stealthy API Recon Tool")
     parser.add_argument("--url", required=True, help="Target website URL")
     parser.add_argument("--active", action="store_true", help="Perform active crawling")
     parser.add_argument("--passive", action="store_true", help="Use passive Wayback scan")
@@ -217,11 +204,12 @@ if __name__ == "__main__":
     parser.add_argument("--graphql", action="store_true", help="Detect GraphQL endpoints")
     parser.add_argument("--tokens", action="store_true", help="Find hardcoded tokens")
     parser.add_argument("--all", action="store_true", help="Run all scans")
-    parser.add_argument("--wordlist", help="Path to wordlist for endpoint fuzzing")
     parser.add_argument("--output", help="Save results to file")
     parser.add_argument("--format", default="json", choices=["json", "txt"], help="Output file format")
+    parser.add_argument("--threads", type=int, default=10, help="Number of concurrent threads")
+    parser.add_argument("--depth", type=int, default=2, help="Crawling depth")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose mode")
-    
+
     args = parser.parse_args()
     verbose = args.verbose
     root_url = args.url if args.url.startswith("http") else f"https://{args.url}"
@@ -231,19 +219,17 @@ if __name__ == "__main__":
     if args.all or args.fingerprint:
         fingerprint()
     if args.all or args.active:
-        crawl(root_url)
+        concurrent_crawl(root_url, args.depth, args.threads)
     if args.all or args.swagger:
         scan_swagger()
     if args.all or args.graphql:
         scan_graphql()
     if args.all or args.tokens:
         scan_for_tokens()
-    if args.wordlist:
-        wordlist_fuzz(args.wordlist)
 
     check_status()
 
-    print("\n[+] API Endpoints Found:")
+    print(f"\n[+] API Endpoints Found: {len(endpoints)}")
     for ep, code in sorted(endpoints.items()):
         print(f"{ep:<60} => {code}")
 
@@ -255,5 +241,3 @@ if __name__ == "__main__":
                 for ep, code in endpoints.items():
                     f.write(f"{ep} => {code}\n")
         print(f"[+] Results saved to {args.output}")
-
-    print(f"\n[*] Total unique endpoints discovered: {len(endpoints)}")
