@@ -1,5 +1,3 @@
-# grAPI
-
 # grAPI — Aggressive & Stealthy API Discovery Toolkit
 
 `grAPI` is a Python-based API recon tool built for security researchers, red teamers, and bug bounty hunters who need a fast, effective way to uncover hidden API endpoints, tokens, routes, and documentation across modern web applications. It combines active and passive discovery methods, fingerprinting, and threat-aware crawling. All with built-in mechanisms to evade WAFs, IDS, and IP-based rate-limiting.
