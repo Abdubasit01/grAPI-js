@@ -135,7 +135,7 @@ https://example.com/js/app.js                     => Token found
 
 ## Author
 
-Built with security research in mind by @DghostNinja
+Built with security research in mind by [@DghostNinja](https://github.com/DghostNinja)
 
 ---
 
