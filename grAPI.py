@@ -11,6 +11,16 @@ from concurrent.futures import ThreadPoolExecutor
 from threading import Thread
 from queue import Queue
 
+# ASCII Banner
+ascii_banner = r"""
+            _   ___ ___ 
+  __ _ _ _ /_\ | _ \_ _|
+ / _` | '_/ _ \|  _/| | 
+ \__, |_|/_/ \_\_| |___|
+ |___/                  
+    by iPsalmy
+"""
+
 ua = UserAgent()
 visited = set()
 endpoints = {}
@@ -24,7 +34,7 @@ KEYWORDS = [
 ]
 
 WAF_SIGNATURES = ["cloudflare", "sucuri", "akamai", "imperva", "aws"]
-BAD_EXTENSIONS = re.compile(r'.(jpg|jpeg|png|gif|svg|css|woff|ico|ttf|eot|pdf)(\?|$)', re.IGNORECASE)
+BAD_EXTENSIONS = re.compile(r'\.(jpg|jpeg|png|gif|svg|css|woff|ico|ttf|eot|pdf)(\?|$)', re.IGNORECASE)
 
 HEADERS = lambda: {
     'User-Agent': ua.random,
@@ -195,6 +205,8 @@ def check_status():
             endpoints[ep] = status
 
 if __name__ == "__main__":
+    print(ascii_banner)
+
     parser = argparse.ArgumentParser(description="grAPI - Aggressive & Stealthy API Recon Tool")
     parser.add_argument("--url", required=True, help="Target website URL")
     parser.add_argument("--active", action="store_true", help="Perform active crawling")
