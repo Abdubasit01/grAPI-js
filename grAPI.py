@@ -19,17 +19,19 @@ try:
 except ImportError:
     PLAYWRIGHT_AVAILABLE = False
 
-ascii_banner = r"""
+# Green bold ASCII banner
+ascii_banner = """
+\033[1;92m
             _   ___ ___   
-  __ _ _ _ /_\ | _ \_ _|  
- / _` | '_/ _ \|  _/| |   
- \__, |_|/_/ \_\_| |___|  
+  __ _ _ _ /_\\ | _ \\_ _|  
+ / _` | '_/ _ \\|  _/| |   
+ \\__, |_|/_/ \\_\\_| |___|  
  |___/        by iPsalmy
-
+\033[0m
 """
 
 def print_banner():
-    print("\033[92m" + ascii_banner + "\033[0m")  # Green color
+    print(ascii_banner, flush=True)
 
 def sanitize_url(url):
     return url if url.startswith('http') else f'http://{url}'
