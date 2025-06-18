@@ -161,6 +161,8 @@ def fuzz_endpoints(base_url, wordlist_path):
     if not os.path.isfile(wordlist_path):
         log(f"[!] Wordlist not found: {wordlist_path}")
         return endpoints
+    if not base_url.endswith('/'):
+        base_url += '/'
     with open(wordlist_path, 'r') as f:
         words = [line.strip() for line in f.readlines()]
     for word in words:
@@ -202,12 +204,13 @@ def grAPI_scan(target, mode, stealth, threads, output, wordlist, skip_dynamic=Fa
         except:
             pass
 
-    log("Crawling JS files...")
-    js_files = crawl_site(target)
     threads_list = []
-    for js in js_files:
-        t = static_worker(js)
-        threads_list.append(t)
+    if mode in ['static', 'all']:
+        log("Crawling JS files...")
+        js_files = crawl_site(target)
+        for js in js_files:
+            t = static_worker(js)
+            threads_list.append(t)
 
     if mode in ['dynamic', 'all'] and not skip_dynamic:
         log("Running dynamic analysis...")
@@ -232,12 +235,10 @@ def grAPI_scan(target, mode, stealth, threads, output, wordlist, skip_dynamic=Fa
     else:
         log(f"[+] {len(all_endpoints)} total endpoints discovered\n")
 
-    # Fetch and display each endpoint with status code
     results = fetch_status_codes(all_endpoints)
     for url, status in results.items():
         print(f"  → {url}  => {status}")
 
-    # Write to output file
     if output.endswith('.json'):
         with open(output, 'w') as f:
             json.dump(results, f, indent=2)
@@ -260,9 +261,16 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    # Check if --wordlist is used and --mode is NOT specified explicitly
+    if args.wordlist and not any(arg in os.sys.argv for arg in ['--mode']):
+        log("[*] Only --wordlist provided with no mode. Running fuzzing-only scan...")
+        mode = 'none'
+    else:
+        mode = args.mode
+
     grAPI_scan(
         sanitize_url(args.url),
-        args.mode,
+        mode,
         args.stealth,
         args.threads,
         args.out,
