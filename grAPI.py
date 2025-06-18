@@ -13,8 +13,12 @@ from selenium import webdriver
 import undetected_chromedriver as uc
 import yaml
 
+try:
+    from playwright.sync_api import sync_playwright
+    PLAYWRIGHT_AVAILABLE = True
+except ImportError:
+    PLAYWRIGHT_AVAILABLE = False
 
-# ASCII Banner
 ascii_banner = r"""
             _   ___ ___   
   __ _ _ _ /_\ | _ \_ _|  
@@ -24,14 +28,15 @@ ascii_banner = r"""
 
 """
 
-# === UTILS ===
+def print_banner():
+    print("\033[92m" + ascii_banner + "\033[0m")  # Green color
+
 def sanitize_url(url):
     return url if url.startswith('http') else f'http://{url}'
 
 def log(msg):
     print(f"[grAPI] {msg}")
 
-# === EVASION ===
 HEADERS = [
     {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)..."},
     {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)..."}
@@ -40,7 +45,6 @@ HEADERS = [
 def get_headers():
     return random.choice(HEADERS)
 
-# === STATIC ANALYSIS ===
 def extract_from_js(content):
     patterns = [
         r'fetch\(["\']([^"\']+)["\']',
@@ -57,12 +61,11 @@ def extract_from_js(content):
         endpoints.update(matches)
     return endpoints
 
-# === DYNAMIC ANALYSIS ===
 def dynamic_capture(target):
     try:
         options = uc.ChromeOptions()
         options.headless = True
-        options.binary_location = "/usr/bin/google-chrome"  # Modify path if needed
+        options.binary_location = "/usr/bin/google-chrome"
         driver = uc.Chrome(options=options)
         driver.get(target)
         time.sleep(10)
@@ -81,10 +84,27 @@ def dynamic_capture(target):
         driver.quit()
         return endpoints
     except Exception as e:
-        log(f"[!] Skipping dynamic scan due to: {e}")
+        log(f"[!] UC dynamic scan failed: {e}")
+        if PLAYWRIGHT_AVAILABLE:
+            log("[+] Falling back to Playwright headless browser...")
+            return playwright_capture(target)
         return set()
 
-# === DOCUMENTATION SCANNER ===
+def playwright_capture(target):
+    endpoints = set()
+    try:
+        with sync_playwright() as p:
+            browser = p.firefox.launch(headless=True)
+            context = browser.new_context()
+            page = context.new_page()
+            page.on("request", lambda request: endpoints.add(request.url) if target in request.url else None)
+            page.goto(target)
+            time.sleep(10)
+            browser.close()
+    except Exception as e:
+        log(f"[!] Playwright fallback failed: {e}")
+    return endpoints
+
 def scan_docs(base_url):
     log(f"[+] Looking for Swagger/OpenAPI docs at known locations...")
     common_paths = [
@@ -103,7 +123,6 @@ def scan_docs(base_url):
                     data = r.json()
                 except:
                     data = yaml.safe_load(r.text)
-
                 paths = data.get('paths', {})
                 for p in paths:
                     full_ep = urljoin(base_url, p)
@@ -112,7 +131,6 @@ def scan_docs(base_url):
             continue
     return endpoints
 
-# === HTML CRAWLER ===
 def crawl_site(base_url):
     to_visit = [base_url]
     visited = set()
@@ -136,7 +154,6 @@ def crawl_site(base_url):
             pass
     return js_files
 
-# === FUZZING ===
 def fuzz_endpoints(base_url, wordlist_path):
     endpoints = set()
     if not os.path.isfile(wordlist_path):
@@ -154,8 +171,7 @@ def fuzz_endpoints(base_url, wordlist_path):
             continue
     return endpoints
 
-# === MAIN SCANNER ===
-def grAPI_scan(target, mode, stealth, threads, output, wordlist):
+def grAPI_scan(target, mode, stealth, threads, output, wordlist, skip_dynamic=False):
     all_endpoints = set()
 
     def threaded(fn):
@@ -181,7 +197,7 @@ def grAPI_scan(target, mode, stealth, threads, output, wordlist):
         t = static_worker(js)
         threads_list.append(t)
 
-    if mode in ['dynamic', 'all']:
+    if mode in ['dynamic', 'all'] and not skip_dynamic:
         log("Running dynamic analysis...")
         dyn_eps = dynamic_capture(target)
         all_endpoints.update(dyn_eps)
@@ -214,8 +230,9 @@ def grAPI_scan(target, mode, stealth, threads, output, wordlist):
         with open(output, 'w') as f:
             f.write("\n".join(sorted(all_endpoints)))
 
-# === ENTRYPOINT ===
 if __name__ == '__main__':
+    print_banner()
+
     parser = argparse.ArgumentParser(description="grAPI - Next-Gen API Endpoint Extractor")
     parser.add_argument('--url', required=True, help='Target website URL')
     parser.add_argument('--mode', default='all', choices=['static', 'dynamic', 'doc', 'all'], help='Scan mode')
@@ -223,6 +240,16 @@ if __name__ == '__main__':
     parser.add_argument('--threads', type=int, default=5, help='Number of threads')
     parser.add_argument('--out', default='endpoints.json', help='Output file path (.json or .txt)')
     parser.add_argument('--wordlist', help='Path to wordlist for endpoint fuzzing')
+    parser.add_argument('--skip-dynamic', action='store_true', help='Skip dynamic scanning (for Termux/UserLAnd or limited environments)')
+
     args = parser.parse_args()
 
-    grAPI_scan(sanitize_url(args.url), args.mode, args.stealth, args.threads, args.out, args.wordlist)
+    grAPI_scan(
+        sanitize_url(args.url),
+        args.mode,
+        args.stealth,
+        args.threads,
+        args.out,
+        args.wordlist,
+        skip_dynamic=args.skip_dynamic
+    )
