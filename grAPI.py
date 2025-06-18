@@ -1,255 +1,228 @@
-import requests
-import re
-import time
-import random
 import argparse
+import os
+import re
 import json
+import time
+import csv
+import random
+import threading
 from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
-from fake_useragent import UserAgent
-from concurrent.futures import ThreadPoolExecutor
-from threading import Thread
-from queue import Queue
+import httpx
+from selenium import webdriver
+import undetected_chromedriver as uc
+import yaml
+
 
 # ASCII Banner
 ascii_banner = r"""
-            _   ___ ___ 
+            _   _ _ 
   __ _ _ _ /_\ | _ \_ _|
  / _` | '_/ _ \|  _/| | 
- \__, |_|/_/ \_\_| |___|
+ \, |_|/_/ \_\_| |_|
  |___/                  
     by iPsalmy
 """
 
-ua = UserAgent()
-visited = set()
-endpoints = {}
-verbose = False
-root_url = ""
-
-KEYWORDS = [
-    'auth', 'login', 'logout', 'register', 'user', 'users', 'admin', 'dashboard',
-    'profile', 'settings', 'account', 'session', 'token', 'graphql', 'rest',
-    'api', 'v1', 'v2', 'products', 'items', 'orders', 'data', 'service'
-]
-
-WAF_SIGNATURES = ["cloudflare", "sucuri", "akamai", "imperva", "aws"]
-BAD_EXTENSIONS = re.compile(r'\.(jpg|jpeg|png|gif|svg|css|woff|ico|ttf|eot|pdf)(\?|$)', re.IGNORECASE)
-
-HEADERS = lambda: {
-    'User-Agent': ua.random,
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Accept': '*/*'
-}
+# === UTILS ===
+def sanitize_url(url):
+    return url if url.startswith('http') else f'http://{url}'
 
 def log(msg):
-    if verbose:
-        print(msg)
+    print(f"[grAPI] {msg}")
 
-def safe_get(url):
-    try:
-        return requests.get(url, headers=HEADERS(), timeout=8)
-    except:
-        return None
+# === EVASION ===
+HEADERS = [
+    {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)..."},
+    {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)..."}
+]
 
-def passive_wayback(target, max_results=300):
-    print("[*] Running passive scan via Wayback Machine...")
-    domain = urlparse(target).netloc
-    wayback_url = (
-        f"http://web.archive.org/cdx/search/cdx?url={domain}/"
-        f"&output=json&fl=original&collapse=urlkey&limit={max_results}"
-    )
-    try:
-        resp = requests.get(wayback_url, timeout=10)
-        if resp.status_code == 200:
-            entries = resp.json()[1:]
-            for entry in entries:
-                url = entry[0]
-                if BAD_EXTENSIONS.search(url): continue
-                if any(re.search(k, url, re.IGNORECASE) for k in KEYWORDS):
-                    endpoints[url] = None
-    except Exception as e:
-        log(f"[!] Wayback failed: {e}")
+def get_headers():
+    return random.choice(HEADERS)
 
-def fingerprint():
-    print("[*] Running fingerprint scan...")
-    try:
-        r = safe_get(root_url)
-        if r:
-            print("[+] Headers:")
-            for k, v in r.headers.items():
-                print(f"  {k}: {v}")
-            for sig in WAF_SIGNATURES:
-                if sig in str(r.headers).lower():
-                    print(f"[!] Possible WAF/CDN detected: {sig}")
-        for path in ["/robots.txt", "/sitemap.xml"]:
-            res = safe_get(urljoin(root_url, path))
-            if res and res.status_code == 200:
-                print(f"[+] {path} found")
-    except:
-        pass
-
-def scan_swagger():
-    print("[*] Scanning for Swagger/OpenAPI...")
-    candidates = ["/swagger.json", "/api-docs", "/v1/swagger.json", "/openapi.json"]
-    for path in candidates:
-        url = urljoin(root_url, path)
-        resp = safe_get(url)
-        if resp and resp.status_code == 200 and 'swagger' in resp.text.lower():
-            print(f"[+] Swagger/OpenAPI found: {url}")
-            endpoints[url] = 200
-
-def scan_graphql():
-    print("[*] Scanning for GraphQL endpoint...")
-    graphql_url = urljoin(root_url, "/graphql")
-    headers = HEADERS()
-    headers['Content-Type'] = 'application/json'
-    payload = {'query': '{ __schema { types { name } } }'}
-    try:
-        resp = requests.post(graphql_url, headers=headers, json=payload, timeout=8)
-        if resp.status_code == 200 and 'data' in resp.text:
-            print(f"[+] GraphQL endpoint detected: {graphql_url}")
-            endpoints[graphql_url] = 200
-    except:
-        pass
-
-def extract_tokens_from_text(text):
-    pattern = r"(?:api_key|token|access_token|auth_token|jwt)[\"']?\s*[:=]\s*[\"']([A-Za-z0-9\-_\.]+)[\"']?"
-    return re.findall(pattern, text, re.IGNORECASE)
-
-def scan_for_tokens():
-    print("[*] Searching for hardcoded tokens...")
-    links = [root_url]
-    html = safe_get(root_url)
-    if not html:
-        return []
-    soup = BeautifulSoup(html.text, 'html.parser')
-    for tag in soup.find_all(["script", "link"]):
-        attr = tag.get('src') or tag.get('href')
-        if attr and attr.endswith(".js"):
-            links.append(urljoin(root_url, attr))
-    for link in links:
-        resp = safe_get(link)
-        if resp and resp.text:
-            toks = extract_tokens_from_text(resp.text)
-            for t in toks:
-                print(f"[+] Token found in {link}: {t}")
-
-def extract_links(html, base_url):
-    soup = BeautifulSoup(html, 'html.parser')
-    urls = set()
-    for tag in soup.find_all(["a", "script", "link"]):
-        attr = tag.get('href') or tag.get('src')
-        if attr:
-            full_url = urljoin(base_url, attr)
-            if urlparse(full_url).netloc == urlparse(base_url).netloc:
-                urls.add(full_url)
-    return urls
-
-def extract_endpoints(text):
+# === STATIC ANALYSIS ===
+def extract_from_js(content):
     patterns = [
-        r'(["\'])(/[^"\'>\s]{1,200}?)\1',
-        r'(["\'])((?:https?:)?//[^"\'>\s]+/[^"\'>\s]+)\1'
+        r'fetch\(["\']([^"\']+)["\']',
+        r'axios\.(get|post|put|delete)\(["\']([^"\']+)["\']',
+        r'XMLHttpRequest\(.*?open\(["\']([^"\']+)',
+        r'url\s*[:=]\s*["\']([^"\']+)',
+        r'path\s*[:=]\s*["\']([^"\']+)'
     ]
-    for pattern in patterns:
-        matches = re.findall(pattern, text)
-        for _, match in matches:
-            if any(re.search(rf'\b{k}\b', match, re.IGNORECASE) for k in KEYWORDS):
-                ep_url = match if match.startswith("http") else urljoin(root_url, match)
-                if ep_url not in endpoints:
-                    endpoints[ep_url] = None
-                    log(f"[+] Found endpoint: {ep_url}")
+    endpoints = set()
+    for p in patterns:
+        matches = re.findall(p, content)
+        if matches and isinstance(matches[0], tuple):
+            matches = [m[-1] for m in matches]
+        endpoints.update(matches)
+    return endpoints
 
-def concurrent_crawl(start_url, max_depth=2, max_threads=10):
-    q = Queue()
-    q.put((start_url, 0))
-
-    def worker():
-        while not q.empty():
-            url, depth = q.get()
-            if depth > max_depth or url in visited or BAD_EXTENSIONS.search(url):
-                q.task_done()
-                continue
-            visited.add(url)
-            try:
-                resp = safe_get(url)
-                if resp and resp.text:
-                    extract_endpoints(resp.text)
-                    for link in extract_links(resp.text, url):
-                        q.put((link, depth + 1))
-            except:
-                pass
-            q.task_done()
-
-    threads = []
-    for _ in range(max_threads):
-        t = Thread(target=worker)
-        t.daemon = True
-        t.start()
-        threads.append(t)
-
-    q.join()
-
-def check_single_endpoint(ep):
+# === DYNAMIC ANALYSIS ===
+def dynamic_capture(target):
     try:
-        r = requests.head(ep, headers=HEADERS(), timeout=6)
-        return ep, r.status_code
-    except:
-        return ep, "ERR"
+        options = uc.ChromeOptions()
+        options.headless = True
+        options.binary_location = "/usr/bin/google-chrome"  # Modify path if needed
+        driver = uc.Chrome(options=options)
+        driver.get(target)
+        time.sleep(10)
+        logs = driver.get_log("performance")
+        endpoints = set()
+        for log_entry in logs:
+            if 'params' in log_entry['message']:
+                try:
+                    msg = json.loads(log_entry['message'])['message']
+                    if 'request' in msg.get('params', {}):
+                        url = msg['params']['request'].get('url')
+                        if url and target in url:
+                            endpoints.add(url)
+                except:
+                    pass
+        driver.quit()
+        return endpoints
+    except Exception as e:
+        log(f"[!] Skipping dynamic scan due to: {e}")
+        return set()
 
-def check_status():
-    print("[*] Checking endpoint statuses (parallel)...")
-    with ThreadPoolExecutor(max_workers=12) as executor:
-        results = executor.map(check_single_endpoint, endpoints.keys())
-        for ep, status in results:
-            endpoints[ep] = status
+# === DOCUMENTATION SCANNER ===
+def scan_docs(base_url):
+    log(f"[+] Looking for Swagger/OpenAPI docs at known locations...")
+    common_paths = [
+        "/swagger.json", "/swagger/v1/swagger.json",
+        "/v2/api-docs", "/openapi.json", "/openapi.yaml",
+        "/docs/swagger.json", "/api/swagger.json"
+    ]
+    endpoints = set()
+    for path in common_paths:
+        full_url = urljoin(base_url, path)
+        try:
+            r = httpx.get(full_url, headers=get_headers(), timeout=10)
+            if r.status_code == 200:
+                log(f"[+] Found API docs at {full_url}")
+                try:
+                    data = r.json()
+                except:
+                    data = yaml.safe_load(r.text)
 
-if __name__ == "__main__":
-    print(ascii_banner)
+                paths = data.get('paths', {})
+                for p in paths:
+                    full_ep = urljoin(base_url, p)
+                    endpoints.add(full_ep)
+        except:
+            continue
+    return endpoints
 
-    parser = argparse.ArgumentParser(description="grAPI - Aggressive & Stealthy API Recon Tool")
-    parser.add_argument("--url", required=True, help="Target website URL")
-    parser.add_argument("--active", action="store_true", help="Perform active crawling")
-    parser.add_argument("--passive", action="store_true", help="Use passive Wayback scan")
-    parser.add_argument("--fingerprint", action="store_true", help="Check for WAF, robots.txt, etc.")
-    parser.add_argument("--swagger", action="store_true", help="Scan for Swagger/OpenAPI")
-    parser.add_argument("--graphql", action="store_true", help="Detect GraphQL endpoints")
-    parser.add_argument("--tokens", action="store_true", help="Find hardcoded tokens")
-    parser.add_argument("--all", action="store_true", help="Run all scans")
-    parser.add_argument("--output", help="Save results to file")
-    parser.add_argument("--format", default="json", choices=["json", "txt"], help="Output file format")
-    parser.add_argument("--threads", type=int, default=10, help="Number of concurrent threads")
-    parser.add_argument("--depth", type=int, default=2, help="Crawling depth")
-    parser.add_argument("-v", "--verbose", action="store_true", help="Verbose mode")
+# === HTML CRAWLER ===
+def crawl_site(base_url):
+    to_visit = [base_url]
+    visited = set()
+    js_files = set()
+    while to_visit:
+        url = to_visit.pop()
+        if url in visited:
+            continue
+        visited.add(url)
+        try:
+            r = httpx.get(url, headers=get_headers(), timeout=10)
+            soup = BeautifulSoup(r.text, 'lxml')
+            for tag in soup.find_all("script", src=True):
+                src = tag['src']
+                js_files.add(urljoin(url, src))
+            for tag in soup.find_all("a", href=True):
+                link = tag['href']
+                if base_url in link:
+                    to_visit.append(link)
+        except:
+            pass
+    return js_files
 
+# === FUZZING ===
+def fuzz_endpoints(base_url, wordlist_path):
+    endpoints = set()
+    if not os.path.isfile(wordlist_path):
+        log(f"[!] Wordlist not found: {wordlist_path}")
+        return endpoints
+    with open(wordlist_path, 'r') as f:
+        words = [line.strip() for line in f.readlines()]
+    for word in words:
+        try:
+            url = urljoin(base_url, word)
+            r = httpx.get(url, headers=get_headers(), timeout=5)
+            if r.status_code < 400:
+                endpoints.add(url)
+        except:
+            continue
+    return endpoints
+
+# === MAIN SCANNER ===
+def grAPI_scan(target, mode, stealth, threads, output, wordlist):
+    all_endpoints = set()
+
+    def threaded(fn):
+        def wrapper(*args, **kwargs):
+            thread = threading.Thread(target=fn, args=args, kwargs=kwargs)
+            thread.start()
+            return thread
+        return wrapper
+
+    @threaded
+    def static_worker(js_url):
+        try:
+            r = httpx.get(js_url, headers=get_headers(), timeout=10)
+            eps = extract_from_js(r.text)
+            all_endpoints.update(urljoin(js_url, ep) for ep in eps if not ep.startswith("data:"))
+        except:
+            pass
+
+    log("Crawling JS files...")
+    js_files = crawl_site(target)
+    threads_list = []
+    for js in js_files:
+        t = static_worker(js)
+        threads_list.append(t)
+
+    if mode in ['dynamic', 'all']:
+        log("Running dynamic analysis...")
+        dyn_eps = dynamic_capture(target)
+        all_endpoints.update(dyn_eps)
+
+    if mode in ['doc', 'all']:
+        log("Scanning API documentation...")
+        doc_eps = scan_docs(target)
+        all_endpoints.update(doc_eps)
+
+    if wordlist:
+        log("Fuzzing endpoints using wordlist...")
+        fuzz_eps = fuzz_endpoints(target, wordlist)
+        all_endpoints.update(fuzz_eps)
+
+    for t in threads_list:
+        t.join()
+
+    if not all_endpoints:
+        log("[!] No endpoints found. Try checking JS content or use --mode doc if API docs exist.")
+    else:
+        log(f"[+] {len(all_endpoints)} total endpoints discovered")
+
+    for ep in sorted(all_endpoints):
+        print(f"  → {ep}")
+
+    if output.endswith('.json'):
+        with open(output, 'w') as f:
+            json.dump(list(all_endpoints), f, indent=2)
+    else:
+        with open(output, 'w') as f:
+            f.write("\n".join(sorted(all_endpoints)))
+
+# === ENTRYPOINT ===
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="grAPI - Next-Gen API Endpoint Extractor")
+    parser.add_argument('--url', required=True, help='Target website URL')
+    parser.add_argument('--mode', default='all', choices=['static', 'dynamic', 'doc', 'all'], help='Scan mode')
+    parser.add_argument('--stealth', action='store_true', help='Enable stealth evasion')
+    parser.add_argument('--threads', type=int, default=5, help='Number of threads')
+    parser.add_argument('--out', default='endpoints.json', help='Output file path (.json or .txt)')
+    parser.add_argument('--wordlist', help='Path to wordlist for endpoint fuzzing')
     args = parser.parse_args()
-    verbose = args.verbose
-    root_url = args.url if args.url.startswith("http") else f"https://{args.url}"
 
-    if args.all or args.passive:
-        passive_wayback(root_url)
-    if args.all or args.fingerprint:
-        fingerprint()
-    if args.all or args.active:
-        concurrent_crawl(root_url, args.depth, args.threads)
-    if args.all or args.swagger:
-        scan_swagger()
-    if args.all or args.graphql:
-        scan_graphql()
-    if args.all or args.tokens:
-        scan_for_tokens()
-
-    check_status()
-
-    print(f"\n[+] API Endpoints Found: {len(endpoints)}")
-    for ep, code in sorted(endpoints.items()):
-        print(f"{ep:<60} => {code}")
-
-    if args.output:
-        with open(args.output, 'w') as f:
-            if args.format == "json":
-                json.dump(endpoints, f, indent=2)
-            else:
-                for ep, code in endpoints.items():
-                    f.write(f"{ep} => {code}\n")
-        print(f"[+] Results saved to {args.output}")
+    grAPI_scan(sanitize_url(args.url), args.mode, args.stealth, args.threads, args.out, args.wordlist)
