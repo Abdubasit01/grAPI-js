@@ -12,6 +12,7 @@ import httpx
 from selenium import webdriver
 import undetected_chromedriver as uc
 import yaml
+from shutil import which
 
 try:
     from playwright.sync_api import sync_playwright
@@ -19,19 +20,16 @@ try:
 except ImportError:
     PLAYWRIGHT_AVAILABLE = False
 
-# Green bold ASCII banner
-ascii_banner = """
-\033[1;92m
+ascii_banner = r"""
             _   ___ ___   
-  __ _ _ _ /_\\ | _ \\_ _|  
- / _` | '_/ _ \\|  _/| |   
- \\__, |_|/_/ \\_\\_| |___|  
+  __ _ _ _ /_\ | _ \_ _|  
+ / _` | '_/ _ \|  _/| |   
+ \__, |_|/_/ \_\_| |___|  
  |___/        by iPsalmy
-\033[0m
 """
 
 def print_banner():
-    print(ascii_banner, flush=True)
+    print("\033[92m" + ascii_banner + "\033[0m")  # Green ANSI
 
 def sanitize_url(url):
     return url if url.startswith('http') else f'http://{url}'
@@ -67,7 +65,9 @@ def dynamic_capture(target):
     try:
         options = uc.ChromeOptions()
         options.headless = True
-        options.binary_location = "/usr/bin/google-chrome"
+        chrome_path = which("google-chrome") or which("chromium-browser")
+        if chrome_path:
+            options.binary_location = chrome_path
         driver = uc.Chrome(options=options)
         driver.get(target)
         time.sleep(10)
@@ -173,6 +173,16 @@ def fuzz_endpoints(base_url, wordlist_path):
             continue
     return endpoints
 
+def fetch_status_codes(endpoints):
+    result = {}
+    for url in sorted(endpoints):
+        try:
+            r = httpx.get(url, headers=get_headers(), timeout=10)
+            result[url] = r.status_code
+        except:
+            result[url] = "ERR"
+    return result
+
 def grAPI_scan(target, mode, stealth, threads, output, wordlist, skip_dynamic=False):
     all_endpoints = set()
 
@@ -220,17 +230,21 @@ def grAPI_scan(target, mode, stealth, threads, output, wordlist, skip_dynamic=Fa
     if not all_endpoints:
         log("[!] No endpoints found. Try checking JS content or use --mode doc if API docs exist.")
     else:
-        log(f"[+] {len(all_endpoints)} total endpoints discovered")
+        log(f"[+] {len(all_endpoints)} total endpoints discovered\n")
 
-    for ep in sorted(all_endpoints):
-        print(f"  → {ep}")
+    # Fetch and display each endpoint with status code
+    results = fetch_status_codes(all_endpoints)
+    for url, status in results.items():
+        print(f"  → {url}  => {status}")
 
+    # Write to output file
     if output.endswith('.json'):
         with open(output, 'w') as f:
-            json.dump(list(all_endpoints), f, indent=2)
+            json.dump(results, f, indent=2)
     else:
         with open(output, 'w') as f:
-            f.write("\n".join(sorted(all_endpoints)))
+            for url, status in results.items():
+                f.write(f"{url} => {status}\n")
 
 if __name__ == '__main__':
     print_banner()
