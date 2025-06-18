@@ -1,3 +1,9 @@
-requests>=2.31.0
-beautifulsoup4>=4.12.2
-fake-useragent>=1.5.1
+httpx
+beautifulsoup4
+lxml
+undetected-chromedriver
+selenium
+pyyaml
+colorama
+playwright
+
