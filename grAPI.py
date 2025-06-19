@@ -1,5 +1,7 @@
-#!/usr/bin/env python3
+
 import argparse, requests, re, random, time, json
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor, as_completed
