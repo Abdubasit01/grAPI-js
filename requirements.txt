@@ -1,9 +1,2 @@
-httpx
-beautifulsoup4
-lxml
-undetected-chromedriver
-selenium
-pyyaml
-colorama
-playwright
-
+playwright==1.46.0
+tqdm==4.66.5
