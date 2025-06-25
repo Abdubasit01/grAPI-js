@@ -1,148 +1,106 @@
-# grAPI — Aggressive & Stealthy API Discovery Toolkit
+# grAPI — Live API Discovery Tool
 
-`grAPI` is a Python-based API recon tool built for security researchers, red teamers, and bug bounty hunters who need a fast, effective way to uncover hidden API endpoints, tokens, routes, and documentation across modern web applications. It combines active and passive discovery methods, fingerprinting, and threat-aware crawling. All with built-in mechanisms to evade WAFs, IDS, and IP-based rate-limiting.
-
-This tool isn't just another crawler. It's tuned for real-world offensive operations where stealth, noise control, and accuracy matter.
+**grAPI** is a simple but powerful utility for pentesters and security researchers who need to discover API endpoints on websites by interacting with them in real time. It uses Playwright under the hood to launch a real browser so you can explore the target and see API calls pop up in your terminal as they happen.
 
 ---
 
-## Why Use grAPI?
+## What It Does
 
-Modern applications are powered by APIs like REST, GraphQL, OpenAPI, and others. These interfaces often become the weakest link in the security chain. `grAPI` was designed to:
+This tool:
 
-- Map API routes and endpoints, even those dynamically generated via JavaScript
-- Find hidden API specs (Swagger, OpenAPI, YAML, etc.)
-- Detect and extract hardcoded tokens from scripts
-- Identify API documentation exposure (e.g., /swagger.json)
-- Passively pull archived endpoints from Wayback Machine
-- Crawl aggressively while avoiding detection or rate-limit bans
-- Auto-analyze headers for fingerprinting WAFs or CDNs
-
----
-
-## Features
-
-- ✅ Active and Passive API Endpoint Discovery  
-- ✅ JavaScript Link and Token Scraper  
-- ✅ Swagger/OpenAPI Spec Detection  
-- ✅ GraphQL Endpoint Identification  
-- ✅ Custom Wordlist-Based Fuzzing  
-- ✅ Dynamic Endpoint Extraction (Regex + Script Parsing)  
-- ✅ WAF and CDN Fingerprinting  
-- ✅ Smart Throttling to Evade IDS/IPS  
-- ✅ Result Export to JSON or TXT  
-- ✅ Parallel Status Code Checker  
-- ✅ Optional Verbose Logging  
+* Opens your target URL in a real browser so you can click around just like a user.
+* Captures any API endpoints the page hits via XHR, Fetch or other network calls.
+* Scans loaded JavaScript files for hidden or hardcoded API paths.
+* Gives you color coded output instantly so you don’t have to wait.
+* Lets you save the endpoints in a simple txt or json file.
+* Generates a Postman collection for easy import into Postman or Burp.
 
 ---
 
-## Usage
+## Why It’s Useful
 
-Run the tool with any combination of flags. Here's a quick look:
+Unlike traditional scanners that only look at source code, grAPI listens to actual traffic as you use the page. That means it catches dynamic APIs that appear after a click, form submit or other interaction.
 
-### Basic Usage:
-
-```bash
-python3 grAPI.py --url https://example.com --all -v
-```
-
-### Flags:
-
-| Flag | Description |
-|------|-------------|
-| --url | Target base URL (e.g., https://site.com) |
-| --active | Enable active crawling & JS parsing |
-| --passive | Use Wayback Machine for endpoint gathering |
-| --fingerprint | Detect WAF/CDN + grab robots/sitemap |
-| --swagger | Check for Swagger/OpenAPI files |
-| --graphql | Try to locate GraphQL endpoint |
-| --tokens | Extract API tokens & secrets from JS files |
-| --wordlist | Custom fuzz list for brute-forcing endpoints |
-| --all | Run everything (recommended for thorough recon) |
-| --output | Save output to a file (JSON or TXT) |
-| --format | Set output format (json or txt, default: json) |
-| -v, --verbose | Show debug/log output during scan |
-
-### Example:
-
-Full aggressive scan with stealth:
-
-```bash
-python3 grAPI.py --url https://target.com --all --wordlist payloads/api-fuzz.txt -v --output results.json
-```
+And because you do the browsing yourself, you control exactly which parts of the app you want to explore. The output is kept clean and minimal so you can jump straight into testing.
 
 ---
 
 ## Installation
 
-Clone the repo:
+First, make sure you have Python 3.10 or higher. Clone this repo and install the dependencies:
 
 ```bash
 git clone https://github.com/DghostNinja/grAPI.git
 cd grAPI
+pip install -r requirements.txt
+playwright install
 ```
 
-Install dependencies:
+---
+
+## Usage
+
+Here’s a typical example:
 
 ```bash
-pip3 install -r requirements.txt
+python3 grAPI.py --url https://targetsite.com -o apis.txt -p apis.postman.json
 ```
 
-### Requirements
+This will:
 
-- Python 3.8+
-- Modules:
-  - requests
-  - beautifulsoup4
-  - fake-useragent
-  - argparse
+1. Launch the browser and open the target.
+2. Print API endpoints as they happen — color coded by HTTP method.
+3. Save them into a file (`apis.txt`) and a Postman collection (`apis.postman.json`).
 
-You can install them manually if needed:
+When you’re done exploring the app, hit Enter in your terminal to stop the scan.
 
-```bash
-pip3 install requests beautifulsoup4 fake-useragent
+---
+
+## Optional Arguments
+
+| Argument        | Description                                        |
+| --------------- | -------------------------------------------------- |
+| `--url`         | Target page URL.                                   |
+| `--timeout`     | Page load timeout in seconds. `0` to wait forever. |
+| `-o, --output`  | Save endpoints as a list in txt or json format.    |
+| `-p, --postman` | Save as a Postman collection you can import.       |
+
+---
+
+## Notes
+
+* This tool catches any URL containing common API keywords like `api`, `graphql`, `openapi`, `swagger` or `.json`.
+* It also parses JavaScript files for hidden paths.
+* The browser stays open so you can manually explore.
+* Works great for SPAs or other JS-heavy sites.
+* If you need more features like capturing request bodies or rate limiting, feel free to fork and enhance.
+
+---
+
+## Example Output
+
+Here’s what you’d see as you browse:
+
+```
+[API detected] POST: http://crapi.apisec.ai/identity/api/auth/forget-password
+[API detected] GET: http://crapi.apisec.ai/shop/api/products
+[JS-detected] /user/profile/update-profile-picture/
+```
+
+And when you hit Enter:
+
+```
+[+] Total API endpoints captured: 3
+[+] Saved 3 endpoints to apis.txt
+[+] Saved Postman collection to apis.postman.json
 ```
 
 ---
 
-## Tips for Use in the Field
+## Contribute
 
-- Avoid IP bans: Use VPN, Tor, or proxy chains during scans  
-- Reduce noise: Limit crawl depth and use --active cautiously  
-- Start passive: Run --passive first to avoid tripping alarms  
-- Token hunting: Use --tokens to find secrets in production JS files  
-- Customize fuzzing: Supply your own wordlist via --wordlist
+Feel free to open an issue if you find bugs or have an idea. Pull requests are welcome too.
 
----
+That’s it. Have fun breaking things and stay curious.
 
-## What It’s Not
-
-This is not a vulnerability scanner — it's an endpoint discovery and reconnaissance tool. You can chain it with tools like nuclei, Burp Suite, or your custom scripts for deeper analysis.
-
----
-
-## Sample Output
-
-```txt
-[+] API Endpoints Found:
-https://example.com/api/v1/user/login             => 200
-https://example.com/graphql                       => 200
-https://example.com/swagger.json                  => 200
-https://example.com/js/app.js                     => Token found
-```
-
----
-
-## Author
-
-Built with security research in mind by [@DghostNinja](https://github.com/DghostNinja)
-
----
-
-## License
-
-MIT
-
----
-
-Got feedback, suggestions, or pull requests? Open an issue or contribute back. Let’s make this beast even more powerful.
+By [iPsalmy](https://github.com/DghostNinja)
