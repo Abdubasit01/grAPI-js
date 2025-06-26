@@ -32,7 +32,7 @@ def is_potential_api(url: str) -> bool:
     lowered = url.lower()
     return any(
         keyword in lowered
-        for keyword in ["/api/", "/graphql", "/openapi", "/swagger", ".json"]
+        for keyword in ["/api/", "/graphql", "/openapi", "/user", "/swagger", ".json"]
     )
 
 def save_output(endpoints, filename):
@@ -66,7 +66,7 @@ def generate_postman_collection(endpoints, filename):
 
 async def scan_js_files(page):
     js_urls = await page.evaluate(
-        """() => Array.from(document.querySelectorAll('script[src]')).map(s => s.src)"""
+        "() => Array.from(document.querySelectorAll('script[src]')).map(s => s.src)"
     )
     potential = set()
     for js_url in js_urls:
@@ -80,13 +80,13 @@ async def scan_js_files(page):
             continue
     return potential
 
-async def intercept_apis(target_url, timeout):
+async def intercept_apis(target_url, timeout, auto_scroll=False):
     apis = set()
     stop_event = threading.Event()
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=False)
-        page = await browser.new_page()
+        context = await browser.new_context()
 
         def handle_request(request):
             url = request.url
@@ -97,7 +97,8 @@ async def intercept_apis(target_url, timeout):
                 sys.stdout.write(f"{color}[API detected] {method}: {url}{RESET}\n")
                 sys.stdout.flush()
 
-        page.on("request", handle_request)
+        context.on("request", handle_request)
+        page = await context.new_page()
 
         def wait_for_user():
             sys.stdout.write("[*] Interactive mode — hit ENTER in terminal when you’re finished\n")
@@ -110,12 +111,17 @@ async def intercept_apis(target_url, timeout):
         sys.stdout.write(f"[*] Visiting {target_url}. Interact manually.\n")
         sys.stdout.flush()
 
-        # Go to the page and wait as long as needed
         await page.goto(
             target_url,
-            wait_until="domcontentloaded",
-            timeout=0,  # No timeout, wait for the user
+            wait_until="networkidle",
+            timeout=timeout if timeout > 0 else 0,
         )
+
+        # optional auto-scroll
+        if auto_scroll:
+            for _ in range(10):
+                await page.evaluate("window.scrollBy(0, document.body.scrollHeight);")
+                await asyncio.sleep(1)
 
         js_apis = await scan_js_files(page)
         for api in js_apis:
@@ -124,7 +130,6 @@ async def intercept_apis(target_url, timeout):
                 sys.stdout.write(f"{COLORS['OTHER']}[JS-detected] {api}{RESET}\n")
                 sys.stdout.flush()
 
-        # Wait for manual stop_event regardless of any timeout specified
         while not stop_event.is_set():
             await asyncio.sleep(0.2)
 
@@ -135,20 +140,29 @@ async def intercept_apis(target_url, timeout):
 def main():
     print(BANNER)
     parser = argparse.ArgumentParser(
-        description="Manually browse a site to capture its API endpoints."
+        description="Manually browse a site and capture its API endpoints."
     )
     parser.add_argument("--url", required=True, help="Target page URL")
     parser.add_argument(
         "--timeout",
         type=int,
         default=60,
-        help="Page load timeout in seconds (not enforced in interactive mode).",
+        help="Page load timeout (seconds). Enter 0 for unlimited.",
+    )
+    parser.add_argument(
+        "--scroll",
+        action="store_true",
+        help="Auto-scroll the page to trigger lazy-loaded content.",
     )
     parser.add_argument("-o", "--output", help="Output file (.json or .txt)")
-    parser.add_argument("-p", "--postman", help="Postman collection file (.postman.json)")
+    parser.add_argument(
+        "-p",
+        "--postman",
+        help="Postman collection file (.postman.json)",
+    )
     args = parser.parse_args()
 
-    endpoints = asyncio.run(intercept_apis(args.url, timeout=args.timeout))
+    endpoints = asyncio.run(intercept_apis(args.url, timeout=args.timeout, auto_scroll=args.scroll))
     if endpoints:
         print(f"\n[+] Total API endpoints captured: {len(endpoints)}")
     else:
