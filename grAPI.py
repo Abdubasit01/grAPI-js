@@ -19,7 +19,6 @@ COLORS = {
     "OTHER": "\033[0m",
 }
 
-
 BANNER = f"""{GREEN}
             _   ___ ___ 
   __ _ _ _ /_\\ | _ \\_ _|
@@ -29,14 +28,12 @@ BANNER = f"""{GREEN}
 {RESET}
 """
 
-
 def is_potential_api(url: str) -> bool:
     lowered = url.lower()
     return any(
         keyword in lowered
         for keyword in ["/api/", "/graphql", "/openapi", "/swagger", ".json"]
     )
-
 
 def save_output(endpoints, filename):
     if filename.endswith(".json"):
@@ -46,7 +43,6 @@ def save_output(endpoints, filename):
         with open(filename, "w") as f:
             f.write("\n".join(sorted(endpoints)))
     print(f"[+] Saved {len(endpoints)} endpoints to {filename}")
-
 
 def generate_postman_collection(endpoints, filename):
     collection = {
@@ -68,7 +64,6 @@ def generate_postman_collection(endpoints, filename):
         json.dump(collection, f, indent=2)
     print(f"[+] Saved Postman collection to {filename}")
 
-
 async def scan_js_files(page):
     js_urls = await page.evaluate(
         """() => Array.from(document.querySelectorAll('script[src]')).map(s => s.src)"""
@@ -77,35 +72,32 @@ async def scan_js_files(page):
     for js_url in js_urls:
         try:
             content = await (await page.request.get(js_url)).text()
-            matches = re.findall(r"(https?://[^\s'\"]+|/[A-Za-z0-9_\-/.]+)", content)
+            matches = re.findall(r"(https?://[^\s'\"<>]+|/[A-Za-z0-9_\-/.]+)", content)
             for match in matches:
                 if is_potential_api(match):
                     potential.add(match)
-        except Exception:
+        except:
             continue
     return potential
 
-
 async def intercept_apis(target_url, timeout):
     apis = set()
+    stop_event = threading.Event()
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False, slow_mo=100)
+        browser = await p.chromium.launch(headless=False)
         page = await browser.new_page()
 
         def handle_request(request):
             url = request.url
             method = request.method.upper()
             color = COLORS.get(method, COLORS["OTHER"])
-
             if is_potential_api(url) and url not in apis:
                 apis.add(url)
                 sys.stdout.write(f"{color}[API detected] {method}: {url}{RESET}\n")
                 sys.stdout.flush()
 
         page.on("request", handle_request)
-
-        stop_event = threading.Event()
 
         def wait_for_user():
             sys.stdout.write("[*] Interactive mode — hit ENTER in terminal when you’re finished\n")
@@ -117,10 +109,12 @@ async def intercept_apis(target_url, timeout):
 
         sys.stdout.write(f"[*] Visiting {target_url}. Interact manually.\n")
         sys.stdout.flush()
+
+        # Go to the page and wait as long as needed
         await page.goto(
             target_url,
-            wait_until="networkidle",
-            timeout=None if timeout == 0 else timeout * 1000,
+            wait_until="domcontentloaded",
+            timeout=0,  # No timeout, wait for the user
         )
 
         js_apis = await scan_js_files(page)
@@ -130,13 +124,13 @@ async def intercept_apis(target_url, timeout):
                 sys.stdout.write(f"{COLORS['OTHER']}[JS-detected] {api}{RESET}\n")
                 sys.stdout.flush()
 
+        # Wait for manual stop_event regardless of any timeout specified
         while not stop_event.is_set():
             await asyncio.sleep(0.2)
 
         await browser.close()
 
     return apis
-
 
 def main():
     print(BANNER)
@@ -148,12 +142,10 @@ def main():
         "--timeout",
         type=int,
         default=60,
-        help="Page load timeout (seconds), 0 for none.",
+        help="Page load timeout in seconds (not enforced in interactive mode).",
     )
     parser.add_argument("-o", "--output", help="Output file (.json or .txt)")
-    parser.add_argument(
-        "-p", "--postman", help="Postman collection output file (.postman.json)"
-    )
+    parser.add_argument("-p", "--postman", help="Postman collection file (.postman.json)")
     args = parser.parse_args()
 
     endpoints = asyncio.run(intercept_apis(args.url, timeout=args.timeout))
@@ -166,7 +158,6 @@ def main():
         save_output(endpoints, args.output)
     if args.postman:
         generate_postman_collection(endpoints, args.postman)
-
 
 if __name__ == "__main__":
     main()
