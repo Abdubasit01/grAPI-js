@@ -34,14 +34,24 @@ You can install grAPI using pip from the local folder:
 ```bash
 git clone https://github.com/DghostNinja/grAPI.git
 cd grAPI
-pip install grAPI
+# Install grapi
+pip install grapi
+
+# Install Playwright browser binaries
+playwright install
+
 ```
 Or from source 
 
 ```baash
 git clone https://github.com/yourusername/grAPI
 cd grAPI
+# Install grapi
 pip install .
+
+# Install Playwright browser binaries
+playwright install
+
 ```
 
 - OPTIONAL:
