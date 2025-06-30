@@ -1,7 +1,7 @@
 .PHONY: build test upload clean
 
 build:
-	python -m build
+	python3 -m build
 
 test:
 	pytest tests/
