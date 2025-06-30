@@ -28,12 +28,13 @@ BANNER = f"""{GREEN}
 {RESET}
 """
 
+# Improved API detection
 def is_potential_api(url: str) -> bool:
     lowered = url.lower()
     return any(
         keyword in lowered
         for keyword in ["/api/", "/graphql", "/openapi", "/user", "/swagger", ".json"]
-    )
+    ) or bool(re.search(r"/v[0-9]+(?:/|$)", lowered))
 
 def save_output(endpoints, filename):
     if filename.endswith(".json"):
@@ -111,15 +112,21 @@ async def intercept_apis(target_url, timeout, auto_scroll=False):
         sys.stdout.write(f"[*] Visiting {target_url}. Interact manually.\n")
         sys.stdout.flush()
 
-        await page.goto(
-            target_url,
-            wait_until="networkidle",
-            timeout=timeout if timeout > 0 else 0,
-        )
+        # Load page with timeout handling
+        try:
+            await page.goto(
+                target_url,
+                wait_until="domcontentloaded",
+                timeout=timeout * 1000 if timeout > 0 else 0,
+            )
+        except Exception as e:
+            sys.stdout.write(f"[!] Could not fully load page ({e}), continuing to intercept requests...\n")
 
         # optional auto-scroll
         if auto_scroll:
             for _ in range(10):
+                if stop_event.is_set():
+                    break
                 await page.evaluate("window.scrollBy(0, document.body.scrollHeight);")
                 await asyncio.sleep(1)
 
@@ -130,6 +137,7 @@ async def intercept_apis(target_url, timeout, auto_scroll=False):
                 sys.stdout.write(f"{COLORS['OTHER']}[JS-detected] {api}{RESET}\n")
                 sys.stdout.flush()
 
+        # Keep alive until user presses ENTER
         while not stop_event.is_set():
             await asyncio.sleep(0.2)
 
@@ -162,7 +170,13 @@ def main():
     )
     args = parser.parse_args()
 
-    endpoints = asyncio.run(intercept_apis(args.url, timeout=args.timeout, auto_scroll=args.scroll))
+    endpoints = asyncio.run(
+        intercept_apis(
+            args.url,
+            timeout=args.timeout,
+            auto_scroll=args.scroll,
+        )
+    )
     if endpoints:
         print(f"\n[+] Total API endpoints captured: {len(endpoints)}")
     else:
