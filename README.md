@@ -64,6 +64,7 @@ When you’re done exploring the app, hit Enter in your terminal to stop the sca
 | `--timeout`     | Page load timeout in seconds. `0` to wait forever. |
 | `-o, --output`  | Save endpoints as a list in txt or json format.    |
 | `-p, --postman` | Save as a Postman collection you can import.       |
+| `--scroll`      | Automatic scrolling interaction crucial for uncovering lazy-loaded API requests.|
 
 ---
 
