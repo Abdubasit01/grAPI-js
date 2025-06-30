@@ -1,22 +1,41 @@
+from grAPI.core import intercept_apis, save_output, generate_postman_collection, BANNER
 import argparse
 import asyncio
-from grapi.core import intercept_apis, save_output, generate_postman_collection
 
 def main():
-    parser = argparse.ArgumentParser(description="Grab API endpoints from web apps")
-    parser.add_argument("--url", required=True)
-    parser.add_argument("--timeout", type=int, default=60)
-    parser.add_argument("--scroll", action="store_true")
-    parser.add_argument("-o", "--output", help="Save as .txt or .json")
-    parser.add_argument("-p", "--postman", help="Export to .postman.json")
+    print(BANNER)
+    parser = argparse.ArgumentParser(
+        description="Manually browse a site and capture its API endpoints."
+    )
+    parser.add_argument("--url", required=True, help="Target page URL")
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=60,
+        help="Page load timeout (seconds). Enter 0 for unlimited.",
+    )
+    parser.add_argument(
+        "--scroll",
+        action="store_true",
+        help="Auto-scroll the page to trigger lazy-loaded content.",
+    )
+    parser.add_argument("-o", "--output", help="Output file (.json or .txt)")
+    parser.add_argument(
+        "-p",
+        "--postman",
+        help="Postman collection file (.postman.json)",
+    )
     args = parser.parse_args()
 
     endpoints = asyncio.run(
-        intercept_apis(args.url, args.timeout, auto_scroll=args.scroll)
+        intercept_apis(
+            args.url,
+            timeout=args.timeout,
+            auto_scroll=args.scroll,
+        )
     )
-
     if endpoints:
-        print(f"[+] Total API endpoints: {len(endpoints)}")
+        print(f"\n[+] Total API endpoints captured: {len(endpoints)}")
     else:
         print("[!] No API endpoints detected.")
 
