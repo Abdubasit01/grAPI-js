@@ -43,6 +43,13 @@ git clone https://github.com/yourusername/grAPI
 cd grAPI
 pip install .
 ```
+
+- OPTIONAL:
+  Add this line to your shell config (~/.bashrc, ~/.zshrc, or ~/.profile depending on your shell):
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+source ~/.bashrc   # or source ~/.zshrc
+```
 ---
 
 ## Usage
