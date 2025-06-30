@@ -29,11 +29,10 @@ And because you do the browsing yourself, you control exactly which parts of the
 
 Make sure you have **Python 3.10+** installed.
 
-You can install grAPI using pip from the local folder:
-
+You can install grAPI using pip:
 ```bash
-git clone https://github.com/DghostNinja/grAPI.git
-cd grAPI
+pip install grapix
+
 # Install grapi
 pip install grapi
 
