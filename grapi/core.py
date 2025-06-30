@@ -16,6 +16,15 @@ COLORS = {
     "OTHER": "\033[0m",
 }
 
+BANNER = f"""{GREEN}
+            _   ___ ___ 
+  __ _ _ _ /_\\ | _ \\_ _|
+ / _` | '_/ _ \\|  _/| | 
+ \\__, |_|/_/ \\_\\_| |___|
+ |___/          by iPsalmy
+{RESET}
+"""
+
 def is_potential_api(url: str) -> bool:
     lowered = url.lower()
     return any(
@@ -60,7 +69,7 @@ async def scan_js_files(page):
     for js_url in js_urls:
         try:
             content = await (await page.request.get(js_url)).text()
-            matches = re.findall(r"(https?://[^\s'\"<>]+|/[A-Za-z0-9_\-/.]+)", content)
+            matches = re.findall(r"(https?://[^\s'\"<>]+|/[A-Za-z0-9_\\-/.]+)", content)
             for match in matches:
                 if is_potential_api(match):
                     potential.add(match)
