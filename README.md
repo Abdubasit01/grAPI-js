@@ -27,7 +27,9 @@ And because you do the browsing yourself, you control exactly which parts of the
 
 ## Installation
 
-First, make sure you have Python 3.10 or higher. Clone this repo and install the dependencies:
+Make sure you have **Python 3.10+** installed.
+
+You can install grAPI using pip from the local folder:
 
 ```bash
 git clone https://github.com/DghostNinja/grAPI.git
@@ -52,45 +54,33 @@ This will:
 2. Print API endpoints as they happen — color coded by HTTP method.
 3. Save them into a file (`apis.txt`) and a Postman collection (`apis.postman.json`).
 
-When you’re done exploring the app, hit Enter in your terminal to stop the scan.
+When you’re done exploring the app, hit **Enter** in your terminal to stop the scan.
 
 ---
 
 ## Optional Arguments
 
-| Argument        | Description                                        |
-| --------------- | -------------------------------------------------- |
-| `--url`         | Target page URL.                                   |
-| `--timeout`     | Page load timeout in seconds. `0` to wait forever. |
-| `-o, --output`  | Save endpoints as a list in txt or json format.    |
-| `-p, --postman` | Save as a Postman collection you can import.       |
-| `--scroll`      | Automatic scrolling interaction crucial for uncovering lazy-loaded API requests.|
-
----
-
-## Notes
-
-* This tool catches any URL containing common API keywords like `api`, `graphql`, `openapi`, `swagger` or `.json`.
-* It also parses JavaScript files for hidden paths.
-* The browser stays open so you can manually explore.
-* Works great for SPAs or other JS-heavy sites.
-* If you need more features like capturing request bodies or rate limiting, feel free to fork and enhance.
+| Argument    | Description                                              |
+| ----------- | -------------------------------------------------------- |
+| `--url`     | Target page URL                                          |
+| `--timeout` | Page load timeout in seconds. `0` disables timeout       |
+| `--scroll`  | Automatically scrolls the page to trigger more API calls |
+| `-o`        | Output filename for saving endpoints (txt or json)       |
+| `-p`        | Export captured endpoints as a Postman collection file   |
 
 ---
 
 ## Example Output
 
-Here’s what you’d see as you browse:
-
-```
+```bash
 [API detected] POST: http://crapi.apisec.ai/identity/api/auth/forget-password
 [API detected] GET: http://crapi.apisec.ai/shop/api/products
 [JS-detected] /user/profile/update-profile-picture/
 ```
 
-And when you hit Enter:
+After hitting Enter:
 
-```
+```bash
 [+] Total API endpoints captured: 3
 [+] Saved 3 endpoints to apis.txt
 [+] Saved Postman collection to apis.postman.json
@@ -98,10 +88,16 @@ And when you hit Enter:
 
 ---
 
+## License
+
+This project is licensed under the terms of the [MIT License](LICENSE). You are free to use, modify, and distribute it as needed.
+
+---
+
 ## Contribute
 
-Feel free to open an issue if you find bugs or have an idea. Pull requests are welcome too.
+If you’ve got feature ideas or improvements, feel free to open an issue or send a pull request.
 
 That’s it. Have fun breaking things and stay curious.
 
-By [iPsalmy](https://github.com/DghostNinja)
+Made with ☕ by [iPsalmy](https://github.com/DghostNinja)
