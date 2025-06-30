@@ -31,10 +31,8 @@ Make sure you have **Python 3.10+** installed.
 
 You can install grAPI using pip:
 ```bash
-pip install grapix
-
 # Install grapi
-pip install grapi
+pip install grapix
 
 # Install Playwright browser binaries
 playwright install
@@ -45,6 +43,7 @@ Or from source
 ```bash
 git clone https://github.com/DghostNinja/grAPI.git
 cd grAPI
+
 # Install grapi
 pip install .
 
@@ -66,6 +65,11 @@ Here’s a typical example:
 
 ```bash
 python3 grAPI.py --url https://targetsite.com -o apis.txt -p apis.postman.json
+```
+OR(Recommended):
+
+```bash
+grAPI --url https://targetsite.com -o apis.txt -p apis.postman.json
 ```
 
 This will:
