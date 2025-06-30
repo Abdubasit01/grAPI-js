@@ -9,7 +9,7 @@ description = "An automated GraphQL/API endpoint extractor using Playwright."
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [
-  { name = "iPsalmy", email = "your@email.com" }
+  { name = "iPsalmy", email = "ipsalmydghost@gmail.com" }
 ]
 dependencies = [
   "playwright>=1.43.0"

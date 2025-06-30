@@ -43,15 +43,14 @@ playwright install
 ```
 Or from source 
 
-```baash
-git clone https://github.com/yourusername/grAPI
+```bash
+git clone https://github.com/DghostNinja/grAPI.git
 cd grAPI
 # Install grapi
 pip install .
 
 # Install Playwright browser binaries
 playwright install
-
 ```
 
 - OPTIONAL:
