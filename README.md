@@ -34,10 +34,15 @@ You can install grAPI using pip from the local folder:
 ```bash
 git clone https://github.com/DghostNinja/grAPI.git
 cd grAPI
-pip install -r requirements.txt
-playwright install
+pip install grAPI
 ```
+Or from source 
 
+```baash
+git clone https://github.com/yourusername/grAPI
+cd grAPI
+pip install .
+```
 ---
 
 ## Usage
