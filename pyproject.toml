@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "grapix"
-version = "0.1.1"
+version = "0.1.2"
 description = "An automated GraphQL/API endpoint extractor using Playwright."
 readme = "README.md"
 license = { file = "LICENSE" }
