@@ -51,6 +51,14 @@ pip install .
 playwright install
 ```
 
+- OPTIONAL:
+  Add this line to your shell config (~/.bashrc, ~/.zshrc, or ~/.profile depending on your shell):
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+source ~/.bashrc   # or source ~/.zshrc
+```
+
+---
 
 ## 📦 Required Libraries for playwright browser
 - Incase of OS or Dependency error:
@@ -76,13 +84,6 @@ sudo apt update && sudo apt install -y \
     libxtst6
 ```
 
-
-- OPTIONAL:
-  Add this line to your shell config (~/.bashrc, ~/.zshrc, or ~/.profile depending on your shell):
-```bash
-export PATH="$HOME/.local/bin:$PATH"
-source ~/.bashrc   # or source ~/.zshrc
-```
 ---
 
 ## Usage
