@@ -83,7 +83,7 @@ sudo apt update && sudo apt install -y \
     libxss1 \
     libxtst6
 ```
-- Run the playwright install command after this again
+- Re-run the playwright install command after
 ---
 
 ## Usage
