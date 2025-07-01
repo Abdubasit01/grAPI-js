@@ -61,7 +61,7 @@ source ~/.bashrc   # or source ~/.zshrc
 ---
 
 ## 📦 Required Libraries for playwright browser
-- Incase of OS or Dependency error:
+- ❌ Incase of OS or Dependency error:
 
 ```bash
 sudo apt update && sudo apt install -y \
