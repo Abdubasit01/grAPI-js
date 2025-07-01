@@ -52,7 +52,8 @@ playwright install
 ```
 
 
-## 📦 Incase of OS or Decency error, these are the required Libraries for playwright browser:
+## 📦 Required Libraries for playwright browser
+- Incase of OS or Dependency error:
 
 ```bash
 sudo apt update && sudo apt install -y \
