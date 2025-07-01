@@ -34,11 +34,11 @@ You can install grAPI using pip:
 # Install grapi
 pip install grapix
 
-# Install Playwright browser binaries
-playwright install
+# Install Playwright browser binaries:
 
+playwright install
 ```
-Or from source 
+Or from source:
 
 ```bash
 git clone https://github.com/DghostNinja/grAPI.git
@@ -50,6 +50,31 @@ pip install .
 # Install Playwright browser binaries
 playwright install
 ```
+
+
+# 📦 Incase of OS or Decency error, these are the required Libraries for playwright browser:
+
+```bash
+sudo apt update && sudo apt install -y \
+    libicu-dev \
+    libjpeg-dev \
+    libwebp-dev \
+    libffi-dev \
+    libnss3 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    libgbm1 \
+    libpango-1.0-0 \
+    libcairo2 \
+    libasound2 \
+    libxss1 \
+    libxtst6
+```
+
 
 - OPTIONAL:
   Add this line to your shell config (~/.bashrc, ~/.zshrc, or ~/.profile depending on your shell):
