@@ -31,8 +31,8 @@ Make sure you have **Nodejs v18.0+** installed.
 
 You can install grAPI using npm on the command line:
 ```bash
-# Install grapi-js
-npm install grapi-js
+# Install grapijs
+npm install grapijs
 
 # Install Playwright browser binaries:
 
