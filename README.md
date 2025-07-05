@@ -1,6 +1,6 @@
-# grAPI — Live API Discovery Tool
+# grAPI-js — Live API Discovery Tool
 
-**grAPI** is a simple but powerful utility for pentesters and security researchers who need to discover API endpoints on websites by interacting with them in real time. It uses Playwright under the hood to launch a real browser so you can explore the target and see API calls pop up in your terminal as they happen.
+**grAPI-js** is a simple but powerful utility for pentesters and security researchers who need to discover API endpoints on websites by interacting with them in real time. It uses Playwright under the hood to launch a real browser so you can explore the target and see API calls pop up in your terminal as they happen.
 
 ---
 
@@ -27,12 +27,12 @@ And because you do the browsing yourself, you control exactly which parts of the
 
 ## Installation
 
-Make sure you have **Python 3.10+** installed.
+Make sure you have **Nodejs v18.0+** installed.
 
-You can install grAPI using pip:
+You can install grAPI using npm on the command line:
 ```bash
-# Install grapi
-pip install grapix
+# Install grapi-js
+npm install grapi-js
 
 # Install Playwright browser binaries:
 
@@ -41,11 +41,11 @@ playwright install
 Or from source:
 
 ```bash
-git clone https://github.com/DghostNinja/grAPI.git
-cd grAPI
+git clone https://github.com/harbsart/grAPI-js.git
+cd grAPI-js
 
 # Install grapi
-pip install .
+npm i
 
 # Install Playwright browser binaries
 playwright install
@@ -91,12 +91,12 @@ sudo apt update && sudo apt install -y \
 Here’s a typical example:
 
 ```bash
-python3 grAPI.py --url https://targetsite.com -o apis.txt -p apis.postman.json
+node grapi.js --url https://linear.app -o apis.txt -p apis.postman.json
 ```
 OR(Recommended):
 
 ```bash
-grAPI --url https://targetsite.com -o apis.txt -p apis.postman.json
+node grapi.js --url https://targetsite.com -o apis.txt -p apis.postman.json
 ```
 
 This will:
@@ -151,4 +151,4 @@ If you’ve got feature ideas or improvements, feel free to open an issue or sen
 
 That’s it. Have fun breaking things and stay curious.
 
-Made with ☕ by [iPsalmy](https://github.com/DghostNinja)
+Made with ☕ by [Harbsart](https://github.com/Abdubasit01/)

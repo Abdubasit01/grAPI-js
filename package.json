@@ -1,0 +1,37 @@
+{
+  "name": "",
+  "version": "1.0.0",
+  "description": "**grAPI** is a simple but powerful utility for pentesters and security researchers who need to discover API endpoints on websites by interacting with them in real time. It uses Playwright under the hood to launch a real browser so you can explore the target and see API calls pop up in your terminal as they happen.",
+  "main": "grapi.js",
+  "bin": {
+    "grapi": "./grapi.js"
+  },
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "mocha tests"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Abdubasit01/grAPI-js.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Abdubasit01/grAPI-js/issues"
+  },
+  "homepage": "https://github.com/Abdubasit01/grAPI-js#readme",
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "minimist": "^1.2.8",
+    "playwright": "^1.53.2",
+    "uuid": "^11.1.0",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "mocha": "^11.7.1"
+  }
+}
