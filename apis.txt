@@ -1,7 +1,0 @@
-/api/
-/api/early_access_features/
-/api/surveys/
-/api/v1/summary
-/api/web_experiments/
-/users/
-https://client-api.linear.app/graphql
