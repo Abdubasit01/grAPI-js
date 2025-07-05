@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # grAPI-js — Live API Discovery Tool
 
 **grAPI-js** is a simple but powerful utility for pentesters and security researchers who need to discover API endpoints on websites by interacting with them in real time. It uses Playwright under the hood to launch a real browser so you can explore the target and see API calls pop up in your terminal as they happen.
@@ -153,6 +152,3 @@ If you’ve got feature ideas or improvements, feel free to open an issue or sen
 That’s it. Have fun breaking things and stay curious.
 
 Made with ☕ by [Harbsart](https://github.com/Abdubasit01/)
-=======
-# grAPI-js
->>>>>>> da27e8ebd0c37da9ec2fbf393a385371b693def3
